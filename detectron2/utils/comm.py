@@ -21,17 +21,13 @@ This variable is set when processes are spawned by `launch()` in "engine/launch.
 def get_world_size() -> int:
     if not dist.is_available():
         return 1
-    if not dist.is_initialized():
-        return 1
-    return dist.get_world_size()
+    return 1 if not dist.is_initialized() else dist.get_world_size()
 
 
 def get_rank() -> int:
     if not dist.is_available():
         return 0
-    if not dist.is_initialized():
-        return 0
-    return dist.get_rank()
+    return 0 if not dist.is_initialized() else dist.get_rank()
 
 
 def get_local_rank() -> int:
@@ -105,8 +101,7 @@ def _serialize_to_tensor(data, group):
             )
         )
     storage = torch.ByteStorage.from_buffer(buffer)
-    tensor = torch.ByteTensor(storage).to(device=device)
-    return tensor
+    return torch.ByteTensor(storage).to(device=device)
 
 
 def _pad_to_largest_tensor(tensor, group):
@@ -259,5 +254,5 @@ def reduce_dict(input_dict, average=True):
             # only main process gets accumulated, so only divide by
             # world_size in this case
             values /= world_size
-        reduced_dict = {k: v for k, v in zip(names, values)}
+        reduced_dict = dict(zip(names, values))
     return reduced_dict

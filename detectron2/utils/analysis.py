@@ -127,7 +127,7 @@ def _wrapper_count_operators(
 ) -> typing.DefaultDict[str, float]:
     # ignore some ops
     supported_ops = {k: lambda *args, **kwargs: {} for k in _IGNORED_OPS}
-    supported_ops.update(kwargs.pop("supported_ops", {}))
+    supported_ops |= kwargs.pop("supported_ops", {})
     kwargs["supported_ops"] = supported_ops
 
     assert len(inputs) == 1, "Please use batch size=1"
@@ -144,7 +144,7 @@ def _wrapper_count_operators(
     elif mode == ACTIVATIONS_MODE:
         ret = activation_count(wrapper, (tensor_input,), **kwargs)
     else:
-        raise NotImplementedError("Count for mode {} is not supported yet.".format(mode))
+        raise NotImplementedError(f"Count for mode {mode} is not supported yet.")
     # compatible with change in fvcore
     if isinstance(ret, tuple):
         ret = ret[0]

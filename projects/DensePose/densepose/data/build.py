@@ -61,16 +61,11 @@ def _compute_num_images_per_worker(cfg: CfgNode):
     images_per_batch = cfg.SOLVER.IMS_PER_BATCH
     assert (
         images_per_batch % num_workers == 0
-    ), "SOLVER.IMS_PER_BATCH ({}) must be divisible by the number of workers ({}).".format(
-        images_per_batch, num_workers
-    )
+    ), f"SOLVER.IMS_PER_BATCH ({images_per_batch}) must be divisible by the number of workers ({num_workers})."
     assert (
         images_per_batch >= num_workers
-    ), "SOLVER.IMS_PER_BATCH ({}) must be larger than the number of workers ({}).".format(
-        images_per_batch, num_workers
-    )
-    images_per_worker = images_per_batch // num_workers
-    return images_per_worker
+    ), f"SOLVER.IMS_PER_BATCH ({images_per_batch}) must be larger than the number of workers ({num_workers})."
+    return images_per_batch // num_workers
 
 
 def _map_category_id_to_contiguous_id(dataset_name: str, dataset_dicts: Iterable[Instance]):
@@ -243,8 +238,7 @@ def _get_train_keep_instance_predicate(cfg: CfgNode):
 
 
 def _get_test_keep_instance_predicate(cfg: CfgNode):
-    general_keep_predicate = _maybe_create_general_keep_instance_predicate(cfg)
-    return general_keep_predicate
+    return _maybe_create_general_keep_instance_predicate(cfg)
 
 
 def _maybe_filter_and_map_categories(
@@ -272,9 +266,7 @@ def _add_category_whitelists_to_metadata(cfg: CfgNode):
         meta.whitelisted_categories = whitelisted_cat_ids
         logger = logging.getLogger(__name__)
         logger.info(
-            "Whitelisted categories for dataset {}: {}".format(
-                dataset_name, meta.whitelisted_categories
-            )
+            f"Whitelisted categories for dataset {dataset_name}: {meta.whitelisted_categories}"
         )
 
 
@@ -286,7 +278,7 @@ def _add_category_maps_to_metadata(cfg: CfgNode):
         meta = MetadataCatalog.get(dataset_name)
         meta.category_map = category_map
         logger = logging.getLogger(__name__)
-        logger.info("Category maps for dataset {}: {}".format(dataset_name, meta.category_map))
+        logger.info(f"Category maps for dataset {dataset_name}: {meta.category_map}")
 
 
 def _add_category_info_to_bootstrapping_metadata(dataset_name: str, dataset_cfg: CfgNode):
@@ -296,9 +288,7 @@ def _add_category_info_to_bootstrapping_metadata(dataset_name: str, dataset_cfg:
     meta.max_count_per_category = dataset_cfg.MAX_COUNT_PER_CATEGORY
     logger = logging.getLogger(__name__)
     logger.info(
-        "Category to class mapping for dataset {}: {}".format(
-            dataset_name, meta.category_to_class_mapping
-        )
+        f"Category to class mapping for dataset {dataset_name}: {meta.category_to_class_mapping}"
     )
 
 
@@ -353,8 +343,8 @@ def _warn_if_merged_different_categories(merged_categories: _MergedCategoriesT):
     for cat_id in merged_categories:
         merged_categories_i = merged_categories[cat_id]
         first_cat_name = merged_categories_i[0].name
-        if len(merged_categories_i) > 1 and not all(
-            cat.name == first_cat_name for cat in merged_categories_i[1:]
+        if len(merged_categories_i) > 1 and any(
+            cat.name != first_cat_name for cat in merged_categories_i[1:]
         ):
             cat_summary_str = ", ".join(
                 [f"{cat.id} ({cat.name}) from {cat.dataset_name}" for cat in merged_categories_i]
@@ -408,17 +398,19 @@ def combine_detection_dataset_dicts(
         print_instances_class_histogram(dataset_dicts, merged_category_names)
         dataset_name_to_dicts[dataset_name] = dataset_dicts
 
-    if keep_instance_predicate is not None:
-        all_datasets_dicts_plain = [
+    return (
+        [
             d
-            for d in itertools.chain.from_iterable(dataset_name_to_dicts.values())
+            for d in itertools.chain.from_iterable(
+                dataset_name_to_dicts.values()
+            )
             if keep_instance_predicate(d)
         ]
-    else:
-        all_datasets_dicts_plain = list(
+        if keep_instance_predicate is not None
+        else list(
             itertools.chain.from_iterable(dataset_name_to_dicts.values())
         )
-    return all_datasets_dicts_plain
+    )
 
 
 def build_detection_train_loader(cfg: CfgNode, mapper=None):
@@ -511,9 +503,8 @@ def build_frame_selector(cfg: CfgNode):
 
 
 def build_transform(cfg: CfgNode, data_type: str):
-    if cfg.TYPE == "resize":
-        if data_type == "image":
-            return ImageResizeTransform(cfg.MIN_SIZE, cfg.MAX_SIZE)
+    if cfg.TYPE == "resize" and data_type == "image":
+        return ImageResizeTransform(cfg.MIN_SIZE, cfg.MAX_SIZE)
     raise ValueError(f"Unknown transform {cfg.TYPE} for data type {data_type}")
 
 
@@ -538,9 +529,7 @@ def build_bootstrap_dataset(dataset_name: str, cfg: CfgNode) -> Sequence[torch.T
     _add_category_info_to_bootstrapping_metadata(dataset_name, cfg)
     meta = MetadataCatalog.get(dataset_name)
     factory = BootstrapDatasetFactoryCatalog.get(meta.dataset_type)
-    dataset = None
-    if factory is not None:
-        dataset = factory(meta, cfg)
+    dataset = factory(meta, cfg) if factory is not None else None
     if dataset is None:
         logger.warning(f"Failed to create dataset {dataset_name} of type {meta.dataset_type}")
     return dataset
@@ -700,14 +689,14 @@ def build_inference_based_loaders(
 
 
 def build_video_list_dataset(meta: Metadata, cfg: CfgNode):
-    video_list_fpath = meta.video_list_fpath
-    video_base_path = meta.video_base_path
-    category = meta.category
     if cfg.TYPE == "video_keyframe":
         frame_selector = build_frame_selector(cfg.SELECT)
         transform = build_transform(cfg.TRANSFORM, data_type="image")
+        video_list_fpath = meta.video_list_fpath
+        video_base_path = meta.video_base_path
         video_list = video_list_from_file(video_list_fpath, video_base_path)
         keyframe_helper_fpath = cfg.KEYFRAME_HELPER if hasattr(cfg, "KEYFRAME_HELPER") else None
+        category = meta.category
         return VideoKeyframeDataset(
             video_list, category, frame_selector, transform, keyframe_helper_fpath
         )
@@ -726,7 +715,9 @@ class _BootstrapDatasetFactoryCatalog(UserDict):
             factory (Callable[Metadata, CfgNode]): a callable which takes Metadata and cfg
             arguments and returns a dataset object.
         """
-        assert dataset_type not in self, "Dataset '{}' is already registered!".format(dataset_type)
+        assert (
+            dataset_type not in self
+        ), f"Dataset '{dataset_type}' is already registered!"
         self[dataset_type] = factory
 
 

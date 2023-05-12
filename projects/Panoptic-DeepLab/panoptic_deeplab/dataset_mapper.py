@@ -47,7 +47,7 @@ class PanopticDeeplabDatasetMapper:
         self.image_format           = image_format
         # fmt: on
         logger = logging.getLogger(__name__)
-        logger.info("Augmentations used in training: " + str(augmentations))
+        logger.info(f"Augmentations used in training: {augmentations}")
 
         self.panoptic_target_generator = panoptic_target_generator
 
@@ -77,12 +77,11 @@ class PanopticDeeplabDatasetMapper:
             ignore_crowd_in_semantic=cfg.INPUT.IGNORE_CROWD_IN_SEMANTIC,
         )
 
-        ret = {
+        return {
             "augmentations": augs,
             "image_format": cfg.INPUT.FORMAT,
             "panoptic_target_generator": panoptic_target_generator,
         }
-        return ret
 
     def __call__(self, dataset_dict):
         """

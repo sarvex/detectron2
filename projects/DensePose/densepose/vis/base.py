@@ -32,10 +32,7 @@ class MatrixVisualizer(object):
     def visualize(self, image_bgr, mask, matrix, bbox_xywh):
         self._check_image(image_bgr)
         self._check_mask_matrix(mask, matrix)
-        if self.inplace:
-            image_target_bgr = image_bgr
-        else:
-            image_target_bgr = image_bgr * 0
+        image_target_bgr = image_bgr if self.inplace else image_bgr * 0
         x, y, w, h = [int(v) for v in bbox_xywh]
         if w <= 0 or h <= 0:
             return image_bgr
@@ -178,9 +175,7 @@ class CompoundVisualizer(object):
     def visualize(self, image_bgr, data):
         assert len(data) == len(
             self.visualizers
-        ), "The number of datas {} should match the number of visualizers" " {}".format(
-            len(data), len(self.visualizers)
-        )
+        ), f"The number of datas {len(data)} should match the number of visualizers {len(self.visualizers)}"
         image = image_bgr
         for i, visualizer in enumerate(self.visualizers):
             image = visualizer.visualize(image, data[i])
@@ -188,4 +183,4 @@ class CompoundVisualizer(object):
 
     def __str__(self):
         visualizer_str = ", ".join([str(v) for v in self.visualizers])
-        return "Compound Visualizer [{}]".format(visualizer_str)
+        return f"Compound Visualizer [{visualizer_str}]"

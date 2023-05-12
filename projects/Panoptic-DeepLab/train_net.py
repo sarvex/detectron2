@@ -71,8 +71,12 @@ class Trainer(DefaultTrainer):
             assert (
                 torch.cuda.device_count() >= comm.get_rank()
             ), "CityscapesEvaluator currently do not work with multiple machines."
-            evaluator_list.append(CityscapesSemSegEvaluator(dataset_name))
-            evaluator_list.append(CityscapesInstanceEvaluator(dataset_name))
+            evaluator_list.extend(
+                (
+                    CityscapesSemSegEvaluator(dataset_name),
+                    CityscapesInstanceEvaluator(dataset_name),
+                )
+            )
         if evaluator_type == "coco_panoptic_seg":
             # `thing_classes` in COCO panoptic metadata includes both thing and
             # stuff classes for visualization. COCOEvaluator requires metadata
@@ -85,11 +89,9 @@ class Trainer(DefaultTrainer):
             evaluator_list.append(
                 COCOEvaluator(dataset_name_mapper[dataset_name], output_dir=output_folder)
             )
-        if len(evaluator_list) == 0:
+        if not evaluator_list:
             raise NotImplementedError(
-                "no Evaluator for the dataset {} with the type {}".format(
-                    dataset_name, evaluator_type
-                )
+                f"no Evaluator for the dataset {dataset_name} with the type {evaluator_type}"
             )
         elif len(evaluator_list) == 1:
             return evaluator_list[0]
@@ -154,9 +156,7 @@ def main(args):
         DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
             cfg.MODEL.WEIGHTS, resume=args.resume
         )
-        res = Trainer.test(cfg, model)
-        return res
-
+        return Trainer.test(cfg, model)
     trainer = Trainer(cfg)
     trainer.resume_or_load(resume=args.resume)
     return trainer.train()

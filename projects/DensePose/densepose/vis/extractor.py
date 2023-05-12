@@ -63,8 +63,7 @@ class BoundingBoxExtractor(object):
     """
 
     def __call__(self, instances: Instances):
-        boxes_xywh = extract_boxes_xywh_from_instances(instances)
-        return boxes_xywh
+        return extract_boxes_xywh_from_instances(instances)
 
 
 class ScoredBoundingBoxExtractor(object):
@@ -195,5 +194,4 @@ class ScoreThresholdedExtractor(object):
             return None
         select_local = scores > self.min_score
         select = select_local if select is None else (select & select_local)
-        data = self.extractor(instances, select=select)
-        return data
+        return self.extractor(instances, select=select)

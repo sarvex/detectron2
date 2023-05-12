@@ -43,9 +43,10 @@ class DensePoseTransformData(object):
         """
         if self.device == device and not copy:
             return self
-        uv_symmetry_map = {}
-        for key in self.uv_symmetries:
-            uv_symmetry_map[key] = self.uv_symmetries[key].to(device=device, copy=copy)
+        uv_symmetry_map = {
+            key: self.uv_symmetries[key].to(device=device, copy=copy)
+            for key in self.uv_symmetries
+        }
         return DensePoseTransformData(uv_symmetry_map, device)
 
     @staticmethod
@@ -67,5 +68,6 @@ class DensePoseTransformData(object):
             for i in range(map_src.shape[1]):
                 map_dst.append(torch.from_numpy(map_src[0, i]).to(dtype=torch.float))
             uv_symmetry_map_torch[key] = torch.stack(map_dst, dim=0)
-        transform_data = DensePoseTransformData(uv_symmetry_map_torch, device=torch.device("cpu"))
-        return transform_data
+        return DensePoseTransformData(
+            uv_symmetry_map_torch, device=torch.device("cpu")
+        )

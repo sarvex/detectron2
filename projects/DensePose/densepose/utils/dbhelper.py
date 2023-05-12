@@ -9,9 +9,7 @@ class EntrySelector(object):
 
     @staticmethod
     def from_string(spec: str) -> "EntrySelector":
-        if spec == "*":
-            return AllEntrySelector()
-        return FieldEntrySelector(spec)
+        return AllEntrySelector() if spec == "*" else FieldEntrySelector(spec)
 
 
 class AllEntrySelector(EntrySelector):
@@ -86,10 +84,7 @@ class FieldEntrySelector(EntrySelector):
         self._predicates = self._parse_specifier_into_predicates(spec)
 
     def __call__(self, entry: Dict[str, Any]):
-        for predicate in self._predicates:
-            if not predicate(entry):
-                return False
-        return True
+        return all(predicate(entry) for predicate in self._predicates)
 
     def _parse_specifier_into_predicates(self, spec: str):
         predicates = []

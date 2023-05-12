@@ -87,8 +87,8 @@ class Keypoints:
         return Keypoints(self.tensor[item])
 
     def __repr__(self) -> str:
-        s = self.__class__.__name__ + "("
-        s += "num_instances={})".format(len(self.tensor))
+        s = f"{self.__class__.__name__}("
+        s += f"num_instances={len(self.tensor)})"
         return s
 
 

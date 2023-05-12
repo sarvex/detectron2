@@ -96,11 +96,10 @@ class Embedder(nn.Module):
         if prefix is None:
             prefix = Embedder.DEFAULT_MODEL_CHECKPOINT_PREFIX
         state_dict = None
-        if fpath.endswith(".pkl"):
-            with PathManager.open(fpath, "rb") as hFile:
+        with PathManager.open(fpath, "rb") as hFile:
+            if fpath.endswith(".pkl"):
                 state_dict = pickle.load(hFile, encoding="latin1")  # pyre-ignore[6]
-        else:
-            with PathManager.open(fpath, "rb") as hFile:
+            else:
                 state_dict = torch.load(hFile, map_location=torch.device("cpu"))
         if state_dict is not None and "model" in state_dict:
             state_dict_local = {}

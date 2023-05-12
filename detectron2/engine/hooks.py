@@ -317,7 +317,7 @@ class AutogradProfiler(HookBase):
         self._profiler.__exit__(None, None, None)
         PathManager.mkdirs(self._output_dir)
         out_file = os.path.join(
-            self._output_dir, "profiler-trace-iter{}.json".format(self.trainer.iter)
+            self._output_dir, f"profiler-trace-iter{self.trainer.iter}.json"
         )
         if "://" not in out_file:
             self._profiler.export_chrome_trace(out_file)
@@ -356,12 +356,10 @@ class EvalHook(HookBase):
         self._func = eval_function
 
     def _do_eval(self):
-        results = self._func()
-
-        if results:
+        if results := self._func():
             assert isinstance(
                 results, dict
-            ), "Eval function must return a dict. Got {} instead.".format(results)
+            ), f"Eval function must return a dict. Got {results} instead."
 
             flattened_results = flatten_results_dict(results)
             for k, v in flattened_results.items():
@@ -369,8 +367,7 @@ class EvalHook(HookBase):
                     v = float(v)
                 except Exception as e:
                     raise ValueError(
-                        "[EvalHook] eval_function should return a nested dict of float. "
-                        "Got '{}: {}' instead.".format(k, v)
+                        f"[EvalHook] eval_function should return a nested dict of float. Got '{k}: {v}' instead."
                     ) from e
             self.trainer.storage.put_scalars(**flattened_results, smoothing_hint=False)
 
@@ -380,10 +377,12 @@ class EvalHook(HookBase):
 
     def after_step(self):
         next_iter = self.trainer.iter + 1
-        if self._period > 0 and next_iter % self._period == 0:
-            # do the last eval in after_train
-            if next_iter != self.trainer.max_iter:
-                self._do_eval()
+        if (
+            self._period > 0
+            and next_iter % self._period == 0
+            and next_iter != self.trainer.max_iter
+        ):
+            self._do_eval()
 
     def after_train(self):
         # This condition is to prevent the eval from running after a failed training

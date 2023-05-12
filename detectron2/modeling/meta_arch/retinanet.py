@@ -222,7 +222,7 @@ class RetinaNet(nn.Module):
         predicted_boxes = processed_results.pred_boxes.tensor.detach().cpu().numpy()
 
         v_pred = Visualizer(img, None)
-        v_pred = v_pred.overlay_instances(boxes=predicted_boxes[0:max_boxes])
+        v_pred = v_pred.overlay_instances(boxes=predicted_boxes[:max_boxes])
         prop_img = v_pred.get_image()
         vis_img = np.vstack((anno_img, prop_img))
         vis_img = vis_img.transpose(2, 0, 1)
@@ -491,8 +491,7 @@ class RetinaNet(nn.Module):
         """
         images = [x["image"].to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, self.backbone.size_divisibility)
-        return images
+        return ImageList.from_tensors(images, self.backbone.size_divisibility)
 
 
 class RetinaNetHead(nn.Module):
@@ -527,7 +526,7 @@ class RetinaNetHead(nn.Module):
         """
         super().__init__()
 
-        if norm == "BN" or norm == "SyncBN":
+        if norm in ["BN", "SyncBN"]:
             logger.warning("Shared norm does not work well for BN, SyncBN, expect poor results")
 
         cls_subnet = []

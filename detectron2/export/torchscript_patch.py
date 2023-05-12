@@ -199,10 +199,6 @@ class {cls_name}:
             ret._{f.name} = t.to(device)
 """
             )
-        else:
-            # For now, ignore fields that cannot be moved to devices.
-            # Maybe can support other tensor-like classes (e.g. __torch_function__)
-            pass
     lines.append(
         """
         return ret
@@ -279,7 +275,9 @@ from detectron2.structures import Boxes, Instances
 
 def _import(path):
     return _import_file(
-        "{}{}".format(sys.modules[__name__].__name__, _counter), path, make_importable=True
+        f"{sys.modules[__name__].__name__}{_counter}",
+        path,
+        make_importable=True,
     )
 
 
@@ -304,7 +302,7 @@ def patch_builtin_len(modules=()):
             "detectron2.modeling.roi_heads.mask_head",
             "detectron2.modeling.roi_heads.keypoint_head",
         ] + list(modules)
-        ctxs = [stack.enter_context(mock.patch(mod + ".len")) for mod in MODULES]
+        ctxs = [stack.enter_context(mock.patch(f"{mod}.len")) for mod in MODULES]
         for m in ctxs:
             m.side_effect = _new_len
         yield

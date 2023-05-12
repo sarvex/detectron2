@@ -35,7 +35,7 @@ class DensePoseOutputsVisualizer(object):
 
         assert isinstance(
             densepose_output, DensePoseChartPredictorOutput
-        ), "DensePoseChartPredictorOutput expected, {} encountered".format(type(densepose_output))
+        ), f"DensePoseChartPredictorOutput expected, {type(densepose_output)} encountered"
 
         S = densepose_output.coarse_segm
         I = densepose_output.fine_segm  # noqa
@@ -44,24 +44,16 @@ class DensePoseOutputsVisualizer(object):
         N = S.size(0)
         assert N == I.size(
             0
-        ), "densepose outputs S {} and I {}" " should have equal first dim size".format(
-            S.size(), I.size()
-        )
+        ), f"densepose outputs S {S.size()} and I {I.size()} should have equal first dim size"
         assert N == U.size(
             0
-        ), "densepose outputs S {} and U {}" " should have equal first dim size".format(
-            S.size(), U.size()
-        )
+        ), f"densepose outputs S {S.size()} and U {U.size()} should have equal first dim size"
         assert N == V.size(
             0
-        ), "densepose outputs S {} and V {}" " should have equal first dim size".format(
-            S.size(), V.size()
-        )
+        ), f"densepose outputs S {S.size()} and V {V.size()} should have equal first dim size"
         assert N == len(
             bboxes_xywh
-        ), "number of bounding boxes {}" " should be equal to first dim size of outputs {}".format(
-            len(bboxes_xywh), N
-        )
+        ), f"number of bounding boxes {len(bboxes_xywh)} should be equal to first dim size of outputs {N}"
         for n in range(N):
             Sn = S[n].argmax(dim=0)
             In = I[n].argmax(dim=0) * (Sn > 0).long()

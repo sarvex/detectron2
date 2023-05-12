@@ -115,7 +115,7 @@ class PanopticDeepLab(nn.Module):
             targets = None
             weights = None
         sem_seg_results, sem_seg_losses = self.sem_seg_head(features, targets, weights)
-        losses.update(sem_seg_losses)
+        losses |= sem_seg_losses
 
         if "center" in batched_inputs[0] and "offset" in batched_inputs[0]:
             center_targets = [x["center"].to(self.device) for x in batched_inputs]
@@ -213,7 +213,7 @@ class PanopticDeepLab(nn.Module):
                         # Get bounding boxes
                         instance.pred_boxes = BitMasks(instance.pred_masks).get_bounding_boxes()
                         instances.append(instance)
-                if len(instances) > 0:
+                if instances:
                     processed_results[-1]["instances"] = Instances.cat(instances)
 
         return processed_results
@@ -266,7 +266,6 @@ class PanopticDeepLabSemSegHead(DeepLabV3PlusHead):
         assert self.decoder_only
 
         self.loss_weight = loss_weight
-        use_bias = norm == ""
         # `head` is additional transform before predictor
         if self.use_depthwise_separable_conv:
             # We use a single 5x5 DepthwiseSeparableConv2d to replace
@@ -282,6 +281,7 @@ class PanopticDeepLabSemSegHead(DeepLabV3PlusHead):
                 activation2=F.relu,
             )
         else:
+            use_bias = norm == ""
             self.head = nn.Sequential(
                 Conv2d(
                     decoder_channels[0],
@@ -313,7 +313,7 @@ class PanopticDeepLabSemSegHead(DeepLabV3PlusHead):
         elif loss_type == "hard_pixel_mining":
             self.loss = DeepLabCE(ignore_label=ignore_value, top_k_percent_pixels=loss_top_k)
         else:
-            raise ValueError("Unexpected loss type: %s" % loss_type)
+            raise ValueError(f"Unexpected loss type: {loss_type}")
 
     @classmethod
     def from_config(cls, cfg, input_shape):
@@ -331,11 +331,10 @@ class PanopticDeepLabSemSegHead(DeepLabV3PlusHead):
         y = self.layers(features)
         if self.training:
             return None, self.losses(y, targets, weights)
-        else:
-            y = F.interpolate(
-                y, scale_factor=self.common_stride, mode="bilinear", align_corners=False
-            )
-            return y, {}
+        y = F.interpolate(
+            y, scale_factor=self.common_stride, mode="bilinear", align_corners=False
+        )
+        return y, {}
 
     def layers(self, features):
         assert self.decoder_only
@@ -349,8 +348,7 @@ class PanopticDeepLabSemSegHead(DeepLabV3PlusHead):
             predictions, scale_factor=self.common_stride, mode="bilinear", align_corners=False
         )
         loss = self.loss(predictions, targets, weights)
-        losses = {"loss_sem_seg": loss * self.loss_weight}
-        return losses
+        return {"loss_sem_seg": loss * self.loss_weight}
 
 
 def build_ins_embed_branch(cfg, input_shape):
@@ -482,9 +480,11 @@ class PanopticDeepLabInsEmbedHead(DeepLabV3PlusHead):
         decoder_channels = [cfg.MODEL.INS_EMBED_HEAD.CONVS_DIM] * (
             len(cfg.MODEL.INS_EMBED_HEAD.IN_FEATURES) - 1
         ) + [cfg.MODEL.INS_EMBED_HEAD.ASPP_CHANNELS]
-        ret = dict(
+        return dict(
             input_shape={
-                k: v for k, v in input_shape.items() if k in cfg.MODEL.INS_EMBED_HEAD.IN_FEATURES
+                k: v
+                for k, v in input_shape.items()
+                if k in cfg.MODEL.INS_EMBED_HEAD.IN_FEATURES
             },
             project_channels=cfg.MODEL.INS_EMBED_HEAD.PROJECT_CHANNELS,
             aspp_dilations=cfg.MODEL.INS_EMBED_HEAD.ASPP_DILATIONS,
@@ -498,7 +498,6 @@ class PanopticDeepLabInsEmbedHead(DeepLabV3PlusHead):
             offset_loss_weight=cfg.MODEL.INS_EMBED_HEAD.OFFSET_LOSS_WEIGHT,
             use_depthwise_separable_conv=cfg.MODEL.SEM_SEG_HEAD.USE_DEPTHWISE_SEPARABLE_CONV,
         )
-        return ret
 
     def forward(
         self,
@@ -521,17 +520,16 @@ class PanopticDeepLabInsEmbedHead(DeepLabV3PlusHead):
                 self.center_losses(center, center_targets, center_weights),
                 self.offset_losses(offset, offset_targets, offset_weights),
             )
-        else:
-            center = F.interpolate(
-                center, scale_factor=self.common_stride, mode="bilinear", align_corners=False
+        center = F.interpolate(
+            center, scale_factor=self.common_stride, mode="bilinear", align_corners=False
+        )
+        offset = (
+            F.interpolate(
+                offset, scale_factor=self.common_stride, mode="bilinear", align_corners=False
             )
-            offset = (
-                F.interpolate(
-                    offset, scale_factor=self.common_stride, mode="bilinear", align_corners=False
-                )
-                * self.common_stride
-            )
-            return center, offset, {}, {}
+            * self.common_stride
+        )
+        return center, offset, {}, {}
 
     def layers(self, features):
         assert self.decoder_only
@@ -549,12 +547,8 @@ class PanopticDeepLabInsEmbedHead(DeepLabV3PlusHead):
             predictions, scale_factor=self.common_stride, mode="bilinear", align_corners=False
         )
         loss = self.center_loss(predictions, targets) * weights
-        if weights.sum() > 0:
-            loss = loss.sum() / weights.sum()
-        else:
-            loss = loss.sum() * 0
-        losses = {"loss_center": loss * self.center_loss_weight}
-        return losses
+        loss = loss.sum() / weights.sum() if weights.sum() > 0 else loss.sum() * 0
+        return {"loss_center": loss * self.center_loss_weight}
 
     def offset_losses(self, predictions, targets, weights):
         predictions = (
@@ -564,9 +558,5 @@ class PanopticDeepLabInsEmbedHead(DeepLabV3PlusHead):
             * self.common_stride
         )
         loss = self.offset_loss(predictions, targets) * weights
-        if weights.sum() > 0:
-            loss = loss.sum() / weights.sum()
-        else:
-            loss = loss.sum() * 0
-        losses = {"loss_offset": loss * self.offset_loss_weight}
-        return losses
+        loss = loss.sum() / weights.sum() if weights.sum() > 0 else loss.sum() * 0
+        return {"loss_offset": loss * self.offset_loss_weight}

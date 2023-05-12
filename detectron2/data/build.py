@@ -120,7 +120,7 @@ def load_proposals_into_dataset(dataset_dicts, proposal_file):
         list[dict]: the same format as dataset_dicts, but added proposal field.
     """
     logger = logging.getLogger(__name__)
-    logger.info("Loading proposals from: {}".format(proposal_file))
+    logger.info(f"Loading proposals from: {proposal_file}")
 
     with PathManager.open(proposal_file, "rb") as f:
         proposals = pickle.load(f, encoding="latin1")
@@ -179,9 +179,7 @@ def print_instances_class_histogram(dataset_dicts, class_names):
 
     def short_name(x):
         # make long class names shorter. useful for lvis
-        if len(x) > 13:
-            return x[:11] + ".."
-        return x
+        return f"{x[:11]}.." if len(x) > 13 else x
 
     data = list(
         itertools.chain(*[[short_name(class_names[i]), int(v)] for i, v in enumerate(histogram)])
@@ -226,7 +224,7 @@ def get_detection_dataset_dicts(names, filter_empty=True, min_keypoints=0, propo
     assert len(names), names
     dataset_dicts = [DatasetCatalog.get(dataset_name) for dataset_name in names]
     for dataset_name, dicts in zip(names, dataset_dicts):
-        assert len(dicts), "Dataset '{}' is empty!".format(dataset_name)
+        assert len(dicts), f"Dataset '{dataset_name}' is empty!"
 
     if proposal_files is not None:
         assert len(names) == len(proposal_files)
@@ -252,7 +250,7 @@ def get_detection_dataset_dicts(names, filter_empty=True, min_keypoints=0, propo
         except AttributeError:  # class names are not available for this dataset
             pass
 
-    assert len(dataset_dicts), "No valid data found in {}.".format(",".join(names))
+    assert len(dataset_dicts), f'No valid data found in {",".join(names)}.'
     return dataset_dicts
 
 
@@ -277,9 +275,7 @@ def build_batch_data_loader(
     world_size = get_world_size()
     assert (
         total_batch_size > 0 and total_batch_size % world_size == 0
-    ), "Total batch size ({}) must be divisible by the number of gpus ({}).".format(
-        total_batch_size, world_size
-    )
+    ), f"Total batch size ({total_batch_size}) must be divisible by the number of gpus ({world_size})."
 
     batch_size = total_batch_size // world_size
     if aspect_ratio_grouping:
@@ -315,7 +311,7 @@ def _train_loader_from_config(cfg, mapper=None, *, dataset=None, sampler=None):
             else 0,
             proposal_files=cfg.DATASETS.PROPOSAL_FILES_TRAIN if cfg.MODEL.LOAD_PROPOSALS else None,
         )
-        _log_api_usage("dataset." + cfg.DATASETS.TRAIN[0])
+        _log_api_usage(f"dataset.{cfg.DATASETS.TRAIN[0]}")
 
     if mapper is None:
         mapper = DatasetMapper(cfg, True)
@@ -323,7 +319,7 @@ def _train_loader_from_config(cfg, mapper=None, *, dataset=None, sampler=None):
     if sampler is None:
         sampler_name = cfg.DATALOADER.SAMPLER_TRAIN
         logger = logging.getLogger(__name__)
-        logger.info("Using training sampler {}".format(sampler_name))
+        logger.info(f"Using training sampler {sampler_name}")
         if sampler_name == "TrainingSampler":
             sampler = TrainingSampler(len(dataset))
         elif sampler_name == "RepeatFactorTrainingSampler":
@@ -332,7 +328,7 @@ def _train_loader_from_config(cfg, mapper=None, *, dataset=None, sampler=None):
             )
             sampler = RepeatFactorTrainingSampler(repeat_factors)
         else:
-            raise ValueError("Unknown training sampler: {}".format(sampler_name))
+            raise ValueError(f"Unknown training sampler: {sampler_name}")
 
     return {
         "dataset": dataset,
@@ -456,13 +452,12 @@ def build_detection_test_loader(dataset, *, mapper, sampler=None, num_workers=0)
     # Always use 1 image per worker during inference since this is the
     # standard when reporting inference time in papers.
     batch_sampler = torch.utils.data.sampler.BatchSampler(sampler, 1, drop_last=False)
-    data_loader = torch.utils.data.DataLoader(
+    return torch.utils.data.DataLoader(
         dataset,
         num_workers=num_workers,
         batch_sampler=batch_sampler,
         collate_fn=trivial_batch_collator,
     )
-    return data_loader
 
 
 def trivial_batch_collator(batch):

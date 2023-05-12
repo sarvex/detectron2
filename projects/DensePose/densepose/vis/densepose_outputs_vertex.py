@@ -103,27 +103,20 @@ class DensePoseOutputsVertexVisualizer(object):
 
         assert isinstance(
             densepose_output, DensePoseEmbeddingPredictorOutput
-        ), "DensePoseEmbeddingPredictorOutput expected, {} encountered".format(
-            type(densepose_output)
-        )
+        ), f"DensePoseEmbeddingPredictorOutput expected, {type(densepose_output)} encountered"
 
         S = densepose_output.coarse_segm
         E = densepose_output.embedding
         N = S.size(0)
         assert N == E.size(
             0
-        ), "CSE coarse_segm {} and embeddings {}" " should have equal first dim size".format(
-            S.size(), E.size()
-        )
+        ), f"CSE coarse_segm {S.size()} and embeddings {E.size()} should have equal first dim size"
         assert N == len(
             bboxes_xywh
-        ), "number of bounding boxes {}" " should be equal to first dim size of outputs {}".format(
-            len(bboxes_xywh), N
-        )
-        assert N == len(pred_classes), (
-            "number of predicted classes {}"
-            " should be equal to first dim size of outputs {}".format(len(bboxes_xywh), N)
-        )
+        ), f"number of bounding boxes {len(bboxes_xywh)} should be equal to first dim size of outputs {N}"
+        assert N == len(
+            pred_classes
+        ), f"number of predicted classes {len(bboxes_xywh)} should be equal to first dim size of outputs {N}"
 
         return S, E, N, bboxes_xywh, pred_classes
 
